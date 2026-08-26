@@ -9,77 +9,84 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Text content is required' }, { status: 400 });
     }
 
+    const words = text.trim().split(/\s+/).filter(Boolean).length;
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey) {
-      const words = text.trim().split(/\s+/).filter(Boolean).length;
       return NextResponse.json({
-        score: 8,
+        score: 6,
         wordCount: words,
-        tensesUsed: { past: 6, present: 3, future: 1 },
-        vocabularyUsed: [
-          { word: 'Determination', meaning: 'दृढ़ संकल्प', cefrLevel: 'B2' },
-          { word: 'Significance', meaning: 'महत्व', cefrLevel: 'B2' }
-        ],
+        tensesUsed: { past: 2, present: 3, future: 0 },
+        vocabularyUsed: [{ word: 'Student', meaning: 'छात्र', cefrLevel: 'A1' }],
         grammarCorrections: [
-          { original: 'I did not went', correction: 'I did not go', reason: 'Use base verb after "did not"' }
+          { original: 'Missing GEMINI_API_KEY in Vercel', correction: 'Add GEMINI_API_KEY in Environment Variables', reason: 'Configuration required' }
         ],
-        feedback: 'Good expressive writing. Rich emotional tone maintained.',
-        fluencyAdvice: 'Practice using diverse transition words like "Furthermore" and "Consequently".'
+        feedback: 'Please configure GEMINI_API_KEY in Vercel settings.',
+        fluencyAdvice: 'Add your API key to get real AI analysis.'
       });
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      generationConfig: { responseMimeType: 'application/json' },
+    });
 
-    const systemInstruction = `You are a high-level CEFR English Linguistic Examiner and writing mentor.
-Analyze the user's autobiographical essay for the prompt: "${prompt}".
-Grammar Focus for this day: "${grammarFocus || 'General Fluency'}".
+    const systemPrompt = `You are a strict English grammar and fluency evaluation tool.
+Analyze this user submission for the prompt: "${prompt}".
+Target Grammar Focus: "${grammarFocus || 'General Writing'}".
 
-Respond ONLY with a single valid JSON object strictly matching this schema:
+User Text:
+"""
+${text}
+"""
+
+Find all spelling mistakes, punctuation errors, sentence fragments, phrasing flaws, or grammatical issues.
+Respond strictly in this exact JSON structure:
 {
-  "score": <number between 1 and 10 representing overall English fluency>,
-  "wordCount": <number of total words in the text>,
+  "score": <integer from 1 to 10 evaluating fluency, flow, and grammar>,
+  "wordCount": ${words},
   "tensesUsed": {
-    "past": <count of past tense verb instances>,
-    "present": <count of present tense verb instances>,
-    "future": <count of future tense verb instances>
+    "past": <count of past tense verbs>,
+    "present": <count of present tense verbs>,
+    "future": <count of future tense verbs>
   },
   "vocabularyUsed": [
     {
-      "word": "<advanced or notable word from essay>",
-      "meaning": "<concise Hindi translation of the word>",
-      "cefrLevel": "<A2|B1|B2|C1|C2>"
+      "word": "<notable or advanced word used by user>",
+      "meaning": "<Hindi meaning>",
+      "cefrLevel": "<A1|A2|B1|B2|C1|C2>"
     }
   ],
   "grammarCorrections": [
     {
-      "original": "<incorrect phrase from text>",
-      "correction": "<corrected phrasing>",
-      "reason": "<clear explanation of grammar rule>"
+      "original": "<exact flawed phrase/fragment from user text>",
+      "correction": "<fixed standard grammatically correct version>",
+      "reason": "<clear explanation of why this was corrected>"
     }
   ],
-  "feedback": "<2-3 sentences of motivating and constructive feedback>",
-  "fluencyAdvice": "<1 practical actionable advice to elevate writing quality>"
+  "feedback": "<2 sentences evaluating the sentence structure and tone>",
+  "fluencyAdvice": "<1 sentence actionable grammar and fluency tip>"
 }`;
 
-    const result = await model.generateContent([systemInstruction, text]);
-    const responseText = result.response.text().replace(/```json|```/g, '').trim();
+    const result = await model.generateContent(systemPrompt);
+    const responseText = result.response.text().trim();
     const parsed = JSON.parse(responseText);
 
     return NextResponse.json(parsed);
-  } catch (error) {
+  } catch (error: any) {
     console.error('API Error:', error);
+    const words = 0;
     return NextResponse.json({
-      score: 7,
-      wordCount: 110,
-      tensesUsed: { past: 4, present: 2, future: 1 },
-      vocabularyUsed: [
-        { word: 'Reflective', meaning: 'विचारशील', cefrLevel: 'B2' }
+      score: 5,
+      wordCount: words,
+      tensesUsed: { past: 0, present: 0, future: 0 },
+      vocabularyUsed: [],
+      grammarCorrections: [
+        { original: 'Analysis Parsing Error', correction: 'Please retry', reason: error?.message || 'Error occurred during AI processing' }
       ],
-      grammarCorrections: [],
-      feedback: 'Good attempt. Writing is coherent and easy to follow.',
-      fluencyAdvice: 'Try to incorporate more complex compound sentences.'
+      feedback: 'Could not complete AI evaluation. Please verify GEMINI_API_KEY in Vercel and redeploy.',
+      fluencyAdvice: 'Check API Key configuration.'
     });
   }
 }
