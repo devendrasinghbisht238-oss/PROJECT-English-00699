@@ -2,6 +2,16 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
+function cleanToAscii(str: string): string {
+  if (!str) return '';
+  return str
+    .replace(/[\u2018\u2019]/g, "'") // single curly quotes
+    .replace(/[\u201C\u201D]/g, '"') // double curly quotes
+    .replace(/[\u2013\u2014]/g, '-') // en/em dashes
+    .replace(/[^\x00-\x7F]/g, ' ')  // remove all non-ASCII bytes that crash ByteString
+    .trim();
+}
+
 function extractJson(text: string) {
   try {
     const cleaned = text
@@ -29,7 +39,10 @@ export async function POST(req: Request) {
     }
 
     wordCountCalculated = rawText.trim().split(/\s+/).filter(Boolean).length;
-    const apiKey = (process.env.GEMINI_API_KEY || '').trim().replace(/[\r\n"']/g, '');
+    
+    // Clean key completely of quotes, newlines, and non-ASCII chars
+    const rawApiKey = (process.env.GEMINI_API_KEY || '').trim();
+    const apiKey = rawApiKey.replace(/[^a-zA-Z0-9_\-\.]/g, '');
 
     if (!apiKey) {
       return NextResponse.json({
@@ -39,110 +52,86 @@ export async function POST(req: Request) {
         vocabularyUsed: [],
         grammarCorrections: [
           {
-            original: 'GEMINI_API_KEY Missing',
-            correction: 'Add GEMINI_API_KEY in Vercel Environment Variables',
-            reason: 'Server requires an active Google AI API Key to run real-time analysis.'
+            original: 'Missing GEMINI_API_KEY',
+            correction: 'Add GEMINI_API_KEY in Vercel',
+            reason: 'Environment variable is missing or contains invalid characters.'
           }
         ],
-        feedback: 'API Key is missing in Vercel settings.',
-        fluencyAdvice: 'Configure GEMINI_API_KEY and redeploy.'
+        feedback: 'Please configure GEMINI_API_KEY in Vercel settings.',
+        fluencyAdvice: 'Add your Gemini API Key and Redeploy.'
       });
     }
 
-    const systemPrompt = `You are a strict, world-class English Linguistics Professor, Grammarian, and CEFR Assessor.
-Analyze the following student writing submission with complete linguistic rigor.
+    const cleanInput = cleanToAscii(rawText);
+    const cleanPrompt = cleanToAscii(rawPrompt);
+    const cleanFocus = cleanToAscii(rawFocus);
 
-Task Theme/Prompt: "${rawPrompt}"
-Grammar Focus: "${rawFocus}"
+    const systemPrompt = `You are a strict English Linguistics Professor and CEFR Assessor.
+Analyze this student writing:
+Prompt: "${cleanPrompt}"
+Grammar Focus: "${cleanFocus}"
 
-Student Submission:
+Student Text:
 """
-${rawText}
+${cleanInput}
 """
 
-YOUR CORE ANALYSIS MANDATE:
-1. DETECT EVERY LINGUISTIC FLAW:
-   - Subject-Verb Agreement (e.g. "i name is", "we is")
-   - Auxiliary/Verb Stacking & Doubling (e.g. "is are", "am live", "did not went")
-   - Conflicting Pronouns & Determiners (e.g. "his my there here home", "their his")
-   - Tenses & Aspect misalignments (past, present, continuous, perfect)
-   - Preposition & Article mistakes (a/an/the, in/on/at)
-   - Spelling mistakes (e.g. "sprituality" -> "spirituality", "experiance" -> "experience")
-   - Capitalization, comma splices, run-on sentences, and missing terminal punctuation.
-
-2. UNLIMITED VOCABULARY EXTRACTION:
-   - Extract 3 to 6 notable, descriptive, or key vocabulary words used in the user's submission.
-   - Provide the accurate, natural Hindi meaning and the exact CEFR level (A1, A2, B1, B2, C1, C2) for each extracted word.
-
-3. UNCOMPROMISING CEFR SCORING (Scale 1-10):
-   - If the sentence is broken, nonsensical, or full of multiple syntax/pronoun clashes, score it strictly between 1 and 3.
-   - Deduct heavily for each major grammar flaw. A score of 8-10 is reserved ONLY for fluent, grammatically flawless writing.
-
-4. ACCURATE VERB COUNT:
-   - Accurately count the number of past, present, and future tense verbs found in the submission.
-
-Respond STRICTLY with a valid JSON object matching this schema (NO markdown formatting or backticks around JSON):
+Instructions:
+1. Extract 3 to 6 notable or misspelled words typed by the student. Provide their accurate Hindi translation and CEFR level (A1 to C2).
+2. Catch every grammatical flaw, double verb (e.g. "is are"), incorrect tense/pronoun chains ("his my there here"), spelling errors, or punctuation mistakes.
+3. Score strictly from 1 to 10 based on grammar accuracy.
+4. Output STRICT JSON only:
 {
-  "score": <integer 1 to 10>,
+  "score": 7,
   "wordCount": ${wordCountCalculated},
-  "tensesUsed": {
-    "past": <count of past verbs>,
-    "present": <count of present verbs>,
-    "future": <count of future verbs>
-  },
+  "tensesUsed": { "past": 0, "present": 0, "future": 0 },
   "vocabularyUsed": [
-    {
-      "word": "<word from user text>",
-      "meaning": "<concise natural Hindi meaning>",
-      "cefrLevel": "<A1|A2|B1|B2|C1|C2>"
-    }
+    { "word": "example", "meaning": "Hindi translation", "cefrLevel": "B2" }
   ],
   "grammarCorrections": [
     {
-      "original": "<exact wrong word/phrase from user text>",
-      "correction": "<correct standard English alternative>",
-      "reason": "<detailed rule explanation covering pronoun, verb, tense, determiner, or spelling>"
+      "original": "flawed text",
+      "correction": "corrected English",
+      "reason": "grammar rule explanation"
     }
   ],
-  "feedback": "<2 clear sentences detailing syntactic and structural quality>",
-  "fluencyAdvice": "<1 actionable fluency tip targeting the exact mistakes made>"
+  "feedback": "Two constructive sentences on writing style.",
+  "fluencyAdvice": "One actionable tip to improve English."
 }`;
 
-    // Target Gemini 1.5 Flash via REST API
-    const response = await fetch(
-      `[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$){encodeURIComponent(apiKey)}`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: systemPrompt }]
-            }
-          ],
-          generationConfig: {
-            temperature: 0.1,
-            responseMimeType: 'application/json'
+    // Query param only (prevents ByteString header crash)
+    const url = `[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$){apiKey}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: systemPrompt }]
           }
-        })
-      }
-    );
+        ],
+        generationConfig: {
+          temperature: 0.1,
+          responseMimeType: 'application/json'
+        }
+      })
+    });
 
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data?.error?.message || `Google API returned status ${response.status}`);
+      throw new Error(data?.error?.message || `API Status: ${response.status}`);
     }
 
     const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
     const parsedData = extractJson(aiText);
 
     if (!parsedData) {
-      throw new Error('Could not parse Gemini JSON response');
+      throw new Error('Invalid JSON format from AI');
     }
 
     return NextResponse.json({
@@ -151,7 +140,7 @@ Respond STRICTLY with a valid JSON object matching this schema (NO markdown form
     });
 
   } catch (error: any) {
-    console.error('Gemini 1.5 Flash Error:', error);
+    console.error('API Error:', error);
     return NextResponse.json({
       score: 1,
       wordCount: wordCountCalculated,
@@ -159,13 +148,13 @@ Respond STRICTLY with a valid JSON object matching this schema (NO markdown form
       vocabularyUsed: [],
       grammarCorrections: [
         {
-          original: 'AI Analysis Error',
-          correction: 'Verify API Connection',
-          reason: error?.message || 'Failed to communicate with Gemini 1.5 Flash.'
+          original: 'Analysis Error',
+          correction: 'Retry Submission',
+          reason: error?.message || 'Processing error'
         }
       ],
       feedback: 'Failed to process AI evaluation.',
-      fluencyAdvice: 'Check API Key status and redeploy.'
+      fluencyAdvice: 'Check API Key configuration.'
     });
   }
 }
