@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+      import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     const rawApiKey = (process.env.GEMINI_API_KEY || '').trim();
     const apiKey = rawApiKey.replace(/[^a-zA-Z0-9_\-\.]/g, '');
 
-    if (!apiKey || apiKey.includes('github') || apiKey.includes('http')) {
+    if (!apiKey) {
       return NextResponse.json({
         score: 0,
         wordCount: wordCountCalculated,
@@ -50,13 +50,13 @@ export async function POST(req: Request) {
         vocabularyUsed: [],
         grammarCorrections: [
           {
-            original: 'Invalid GEMINI_API_KEY',
-            correction: 'Paste actual Google AI Key in Vercel',
-            reason: 'Environment variable in Vercel contains GitHub text or invalid characters.'
+            original: 'GEMINI_API_KEY Missing',
+            correction: 'Configure GEMINI_API_KEY in Vercel',
+            reason: 'Environment variable not configured in Vercel settings.'
           }
         ],
-        feedback: 'Please check your GEMINI_API_KEY in Vercel Environment Variables.',
-        fluencyAdvice: 'Paste your real API key in Vercel and redeploy.'
+        feedback: 'Please configure GEMINI_API_KEY in Vercel settings.',
+        fluencyAdvice: 'Add your Gemini API Key and Redeploy.'
       });
     }
 
@@ -75,8 +75,8 @@ ${cleanInput}
 """
 
 Instructions:
-1. Extract 3 to 6 notable or misspelled words typed by the student. Provide their accurate Hindi translation and CEFR level (A1 to C2).
-2. Catch every grammatical flaw, double verb (e.g. "is are"), incorrect tense/pronoun chains ("his my there here"), spelling errors, or punctuation mistakes.
+1. Extract 2 to 5 notable or misspelled words typed by the student. Provide their accurate Hindi translation and CEFR level (A1 to C2).
+2. Catch every grammatical flaw, capitalization issue (e.g., "i am" -> "I am"), syntax errors, spelling mistakes, or missing punctuation.
 3. Score strictly from 1 to 10 based on grammar accuracy.
 4. Output STRICT JSON only:
 {
@@ -97,9 +97,10 @@ Instructions:
   "fluencyAdvice": "One actionable tip to improve English."
 }`;
 
-    const targetUrl = `[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$){apiKey}`;
+    const url = new URL('[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent)');
+    url.searchParams.set('key', apiKey);
 
-    const response = await fetch(targetUrl, {
+    const response = await fetch(url.toString(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -121,7 +122,7 @@ Instructions:
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data?.error?.message || `API Status: ${response.status}`);
+      throw new Error(data?.error?.message || `Google API returned status ${response.status}`);
     }
 
     const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -151,7 +152,7 @@ Instructions:
         }
       ],
       feedback: 'Failed to process AI evaluation.',
-      fluencyAdvice: 'Check API Key configuration.'
+      fluencyAdvice: 'Check API Key configuration in Vercel.'
     });
   }
 }
