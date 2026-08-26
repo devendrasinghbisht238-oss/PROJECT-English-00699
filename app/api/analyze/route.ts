@@ -42,7 +42,7 @@ export async function POST(req: Request) {
     const rawApiKey = (process.env.GEMINI_API_KEY || '').trim();
     const apiKey = rawApiKey.replace(/[^a-zA-Z0-9_\-\.]/g, '');
 
-    if (!apiKey) {
+    if (!apiKey || apiKey.includes('github') || apiKey.includes('http')) {
       return NextResponse.json({
         score: 0,
         wordCount: wordCountCalculated,
@@ -50,13 +50,13 @@ export async function POST(req: Request) {
         vocabularyUsed: [],
         grammarCorrections: [
           {
-            original: 'Missing GEMINI_API_KEY',
-            correction: 'Add GEMINI_API_KEY in Vercel',
-            reason: 'Environment variable is missing or invalid.'
+            original: 'Invalid GEMINI_API_KEY',
+            correction: 'Paste actual Google AI Key in Vercel',
+            reason: 'Environment variable in Vercel contains GitHub text or invalid characters.'
           }
         ],
-        feedback: 'Please configure GEMINI_API_KEY in Vercel settings.',
-        fluencyAdvice: 'Add your Gemini API Key and Redeploy.'
+        feedback: 'Please check your GEMINI_API_KEY in Vercel Environment Variables.',
+        fluencyAdvice: 'Paste your real API key in Vercel and redeploy.'
       });
     }
 
@@ -97,8 +97,7 @@ Instructions:
   "fluencyAdvice": "One actionable tip to improve English."
 }`;
 
-    // Clean, single-target endpoint URL
-    const targetUrl = '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)' + apiKey;
+    const targetUrl = `[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$){apiKey}`;
 
     const response = await fetch(targetUrl, {
       method: 'POST',
