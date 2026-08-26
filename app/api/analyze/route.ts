@@ -1,16 +1,6 @@
-      import { NextResponse } from 'next/server';
+           import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
-
-function cleanToAscii(str: string): string {
-  if (!str) return '';
-  return str
-    .replace(/[\u2018\u2019]/g, "'")
-    .replace(/[\u201C\u201D]/g, '"')
-    .replace(/[\u2013\u2014]/g, '-')
-    .replace(/[^\x00-\x7F]/g, ' ')
-    .trim();
-}
 
 function extractJson(text: string) {
   try {
@@ -39,8 +29,10 @@ export async function POST(req: Request) {
     }
 
     wordCountCalculated = rawText.trim().split(/\s+/).filter(Boolean).length;
+    
+    // Clean key of any accidental spaces or newlines
     const rawApiKey = (process.env.GEMINI_API_KEY || '').trim();
-    const apiKey = rawApiKey.replace(/[^a-zA-Z0-9_\-\.]/g, '');
+    const apiKey = rawApiKey.replace(/[\r\n\t "']/g, '');
 
     if (!apiKey) {
       return NextResponse.json({
@@ -51,8 +43,8 @@ export async function POST(req: Request) {
         grammarCorrections: [
           {
             original: 'GEMINI_API_KEY Missing',
-            correction: 'Configure GEMINI_API_KEY in Vercel',
-            reason: 'Environment variable not configured in Vercel settings.'
+            correction: 'Add GEMINI_API_KEY in Vercel',
+            reason: 'Environment variable not found in Vercel settings.'
           }
         ],
         feedback: 'Please configure GEMINI_API_KEY in Vercel settings.',
@@ -60,25 +52,21 @@ export async function POST(req: Request) {
       });
     }
 
-    const cleanInput = cleanToAscii(rawText);
-    const cleanPrompt = cleanToAscii(rawPrompt);
-    const cleanFocus = cleanToAscii(rawFocus);
-
     const systemPrompt = `You are a strict English Linguistics Professor and CEFR Assessor.
 Analyze this student writing:
-Prompt: "${cleanPrompt}"
-Grammar Focus: "${cleanFocus}"
+Prompt: "${rawPrompt}"
+Grammar Focus: "${rawFocus}"
 
 Student Text:
 """
-${cleanInput}
+${rawText}
 """
 
 Instructions:
 1. Extract 2 to 5 notable or misspelled words typed by the student. Provide their accurate Hindi translation and CEFR level (A1 to C2).
-2. Catch every grammatical flaw, capitalization issue (e.g., "i am" -> "I am"), syntax errors, spelling mistakes, or missing punctuation.
+2. Catch every grammatical flaw, capitalization issue (e.g. "mayank" -> "Mayank", "i am" -> "I am"), missing punctuation (missing full stop at end), syntax errors, or spelling mistakes.
 3. Score strictly from 1 to 10 based on grammar accuracy.
-4. Output STRICT JSON only:
+4. Output STRICT JSON only (NO markdown outside JSON):
 {
   "score": 7,
   "wordCount": ${wordCountCalculated},
@@ -97,13 +85,14 @@ Instructions:
   "fluencyAdvice": "One actionable tip to improve English."
 }`;
 
-    const url = new URL('[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent)');
-    url.searchParams.set('key', apiKey);
+    // Static URL without query params (Guaranteed never to throw "Invalid URL")
+    const staticEndpoint = '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent)';
 
-    const response = await fetch(url.toString(), {
+    const response = await fetch(staticEndpoint, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
       },
       body: JSON.stringify({
         contents: [
@@ -122,7 +111,7 @@ Instructions:
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data?.error?.message || `Google API returned status ${response.status}`);
+      throw new Error(data?.error?.message || `Google API status ${response.status}`);
     }
 
     const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
