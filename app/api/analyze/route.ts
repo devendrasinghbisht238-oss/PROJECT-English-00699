@@ -1,92 +1,122 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextResponse } from 'next/server';
+
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: Request) {
   try {
-    const { text, prompt, grammarFocus } = await req.json();
+    const body = await req.json();
+    const rawText = body.text || '';
+    const rawPrompt = body.prompt || '';
+    const rawFocus = body.grammarFocus || '';
 
-    if (!text || typeof text !== 'string' || !text.trim()) {
+    if (!rawText || typeof rawText !== 'string' || !rawText.trim()) {
       return NextResponse.json({ error: 'Text content is required' }, { status: 400 });
     }
 
-    const words = text.trim().split(/\s+/).filter(Boolean).length;
-    const apiKey = process.env.GEMINI_API_KEY;
+    const words = rawText.trim().split(/\s+/).filter(Boolean).length;
+    const apiKey = (process.env.GEMINI_API_KEY || '').trim();
 
     if (!apiKey) {
       return NextResponse.json({
-        score: 6,
+        score: 0,
         wordCount: words,
-        tensesUsed: { past: 2, present: 3, future: 0 },
-        vocabularyUsed: [{ word: 'Student', meaning: 'छात्र', cefrLevel: 'A1' }],
+        tensesUsed: { past: 0, present: 0, future: 0 },
+        vocabularyUsed: [],
         grammarCorrections: [
-          { original: 'Missing GEMINI_API_KEY in Vercel', correction: 'Add GEMINI_API_KEY in Environment Variables', reason: 'Configuration required' }
+          {
+            original: 'Missing GEMINI_API_KEY',
+            correction: 'Add GEMINI_API_KEY in Vercel Environment Variables',
+            reason: 'Environment variable not configured in Vercel.',
+          },
         ],
         feedback: 'Please configure GEMINI_API_KEY in Vercel settings.',
-        fluencyAdvice: 'Add your API key to get real AI analysis.'
+        fluencyAdvice: 'Add your Gemini API Key and Redeploy.',
       });
     }
 
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-      generationConfig: { responseMimeType: 'application/json' },
-    });
+    const systemPrompt = `You are a strict English linguistic evaluator and grammar coach.
+Target Prompt: "${rawPrompt}"
+Grammar Focus: "${rawFocus}"
 
-    const systemPrompt = `You are a strict English grammar and fluency evaluation tool.
-Analyze this user submission for the prompt: "${prompt}".
-Target Grammar Focus: "${grammarFocus || 'General Writing'}".
-
-User Text:
+User Text to Analyze:
 """
-${text}
+${rawText}
 """
 
-Find all spelling mistakes, punctuation errors, sentence fragments, phrasing flaws, or grammatical issues.
-Respond strictly in this exact JSON structure:
+Instructions:
+1. Identify all spelling, grammar, punctuation, and fragment errors.
+2. Provide concise CEFR vocabulary feedback with Hindi translations.
+3. Respond ONLY with this exact JSON schema (no extra text or markdown):
 {
-  "score": <integer from 1 to 10 evaluating fluency, flow, and grammar>,
+  "score": 7,
   "wordCount": ${words},
-  "tensesUsed": {
-    "past": <count of past tense verbs>,
-    "present": <count of present tense verbs>,
-    "future": <count of future tense verbs>
-  },
+  "tensesUsed": { "past": 1, "present": 2, "future": 0 },
   "vocabularyUsed": [
-    {
-      "word": "<notable or advanced word used by user>",
-      "meaning": "<Hindi meaning>",
-      "cefrLevel": "<A1|A2|B1|B2|C1|C2>"
-    }
+    { "word": "example", "meaning": "उदाहरण", "cefrLevel": "B2" }
   ],
   "grammarCorrections": [
     {
-      "original": "<exact flawed phrase/fragment from user text>",
-      "correction": "<fixed standard grammatically correct version>",
-      "reason": "<clear explanation of why this was corrected>"
+      "original": "exact wrong phrase from text",
+      "correction": "corrected phrasing",
+      "reason": "grammar rule explanation"
     }
   ],
-  "feedback": "<2 sentences evaluating the sentence structure and tone>",
-  "fluencyAdvice": "<1 sentence actionable grammar and fluency tip>"
+  "feedback": "Two constructive sentences on writing style.",
+  "fluencyAdvice": "One actionable tip to improve grammar."
 }`;
 
-    const result = await model.generateContent(systemPrompt);
-    const responseText = result.response.text().trim();
-    const parsed = JSON.parse(responseText);
+    // Direct Google Gemini REST API Endpoint
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
 
-    return NextResponse.json(parsed);
-  } catch (error: any) {
-    console.error('API Error:', error);
-    const words = 0;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: systemPrompt }],
+          },
+        ],
+        generationConfig: {
+          responseMimeType: 'application/json',
+        },
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const errMsg = data?.error?.message || 'Google API Error';
+      throw new Error(errMsg);
+    }
+
+    const rawReply = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const cleanJson = rawReply.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+    const parsed = JSON.parse(cleanJson);
+
     return NextResponse.json({
-      score: 5,
+      ...parsed,
       wordCount: words,
+    });
+  } catch (error: any) {
+    console.error('Direct API Error:', error);
+    return NextResponse.json({
+      score: 0,
+      wordCount: 0,
       tensesUsed: { past: 0, present: 0, future: 0 },
       vocabularyUsed: [],
       grammarCorrections: [
-        { original: 'Analysis Processing Error', correction: 'Retry with valid text', reason: error?.message || 'Error occurred during AI processing' }
+        {
+          original: 'API Execution Error',
+          correction: 'Retry Analysis',
+          reason: error?.message || 'Failed to process AI evaluation.',
+        },
       ],
-      feedback: 'AI could not process this text format.',
-      fluencyAdvice: 'Check API Key configuration.'
+      feedback: 'Could not complete AI evaluation with the current key.',
+      fluencyAdvice: 'Check API Key configuration in Vercel.',
     });
   }
 }
