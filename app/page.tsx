@@ -71,7 +71,7 @@ export default function Dashboard() {
         setCompletedDays(updated);
         localStorage.setItem('autobio_completed_days', JSON.stringify(updated));
       }
-    } catch (e) {
+    } catch {
       alert('Network error while requesting analysis.');
     } finally {
       setLoading(false);
