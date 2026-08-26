@@ -12,10 +12,11 @@ import {
   BookOpen, 
   Flame, 
   Award, 
-  VolumeX
+  VolumeX 
 } from 'lucide-react';
 
 export default function Dashboard() {
+  const [mounted, setMounted] = useState(false);
   const [selectedDay, setSelectedDay] = useState(1);
   const [entryText, setEntryText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,19 +27,15 @@ export default function Dashboard() {
   const currentTask = TASKS.find((t) => t.day === selectedDay) || TASKS[0];
 
   useEffect(() => {
+    setMounted(true);
     const saved = localStorage.getItem(`autobio_day_${selectedDay}`);
-    if (saved) {
-      setEntryText(saved);
-    } else {
-      setEntryText('');
-    }
-    setAnalysis(null);
+    if (saved) setEntryText(saved);
 
     const savedCompleted = localStorage.getItem('autobio_completed_days');
     if (savedCompleted) {
       try {
         setCompletedDays(JSON.parse(savedCompleted));
-      } catch (e) {
+      } catch {
         setCompletedDays([]);
       }
     }
@@ -47,7 +44,9 @@ export default function Dashboard() {
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
     setEntryText(val);
-    localStorage.setItem(`autobio_day_${selectedDay}`, val);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`autobio_day_${selectedDay}`, val);
+    }
   };
 
   const handleAnalyze = async () => {
@@ -83,7 +82,7 @@ export default function Dashboard() {
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        const content = event.target?.result as string;
+        const content = (event.target?.result as string) || '';
         setEntryText(content);
         localStorage.setItem(`autobio_day_${selectedDay}`, content);
       };
@@ -92,7 +91,7 @@ export default function Dashboard() {
   };
 
   const toggleSpeak = () => {
-    if (!('speechSynthesis' in window)) {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       alert('Text to speech is not supported in this browser.');
       return;
     }
@@ -113,21 +112,7 @@ export default function Dashboard() {
   };
 
   const exportSingleEntry = () => {
-    const content = `AutoBio English Portfolio - Day ${currentTask.day}
-Theme: ${currentTask.theme}
-Topic: ${currentTask.title}
-Grammar Focus: ${currentTask.grammarFocus}
---------------------------------------------------
-USER WRITING:
-${entryText}
-
---------------------------------------------------
-AI ANALYSIS EVALUATION:
-Fluency Score: ${analysis?.score || 'Pending'} / 10
-Word Count: ${analysis?.wordCount || entryText.trim().split(/\s+/).filter(Boolean).length}
-Feedback: ${analysis?.feedback || 'N/A'}
-Fluency Advice: ${analysis?.fluencyAdvice || 'N/A'}
-`;
+    const content = `AutoBio English Portfolio - Day ${currentTask.day}\nTheme: ${currentTask.theme}\nTopic: ${currentTask.title}\nGrammar Focus: ${currentTask.grammarFocus}\n\nUSER WRITING:\n${entryText}\n\nAI EVALUATION:\nScore: ${analysis?.score || 'N/A'}/10\nFeedback: ${analysis?.feedback || 'N/A'}`;
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -138,10 +123,10 @@ Fluency Advice: ${analysis?.fluencyAdvice || 'N/A'}
   };
 
   const exportCompletePortfolio = () => {
-    let fullContent = `==================================================\n   AUTOBIO ENGLISH 20-DAY LEARNING PORTFOLIO\n==================================================\n\n`;
+    let fullContent = `AUTOBIO ENGLISH 20-DAY PORTFOLIO\n================================\n\n`;
     TASKS.forEach((t) => {
       const saved = localStorage.getItem(`autobio_day_${t.day}`) || '(No entry submitted yet)';
-      fullContent += `DAY ${t.day}: ${t.title} [${t.theme}]\nPrompt: ${t.prompt}\n\nEssay:\n${saved}\n\n--------------------------------------------------\n\n`;
+      fullContent += `DAY ${t.day}: ${t.title} [${t.theme}]\nPrompt: ${t.prompt}\n\nEssay:\n${saved}\n\n-------------------------\n\n`;
     });
 
     const blob = new Blob([fullContent], { type: 'text/plain;charset=utf-8' });
@@ -153,223 +138,185 @@ Fluency Advice: ${analysis?.fluencyAdvice || 'N/A'}
     URL.revokeObjectURL(url);
   };
 
+  if (!mounted) {
+    return (
+      <div style={{ backgroundColor: '#020617', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818cf8', fontFamily: 'sans-serif' }}>
+        Loading AutoBio AI...
+      </div>
+    );
+  }
+
   const wordCount = entryText.trim() ? entryText.trim().split(/\s+/).filter(Boolean).length : 0;
   const progressPercent = Math.round((completedDays.length / 20) * 100);
 
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 max-w-7xl mx-auto font-sans">
-      <header className="mb-8 border-b border-slate-800 pb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-indigo-600 rounded-lg shadow-lg">
-            <BookOpen className="w-6 h-6 text-white" />
+    <main style={{ minHeight: '100vh', backgroundColor: '#020617', color: '#f8fafc', padding: '24px', maxWidth: '1280px', margin: '0 auto', fontFamily: 'sans-serif' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #1e293b', paddingBottom: '16px', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ padding: '8px', backgroundColor: '#4f46e5', borderRadius: '8px' }}>
+            <BookOpen style={{ width: '24px', height: '24px', color: '#ffffff' }} />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white flex items-center gap-2">
-              AutoBio <span className="text-indigo-400">English AI</span>
+            <h1 style={{ fontSize: '24px', fontWeight: '900', margin: 0 }}>
+              AutoBio <span style={{ color: '#818cf8' }}>English AI</span>
             </h1>
-            <p className="text-xs md:text-sm text-slate-400">20-Day Autobiographical Fluency & Linguistic Portfolio</p>
+            <p style={{ fontSize: '13px', color: '#94a3b8', margin: '4px 0 0 0' }}>20-Day Fluency & Linguistic Portfolio</p>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <div className="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-400">
-            <Flame className="w-4 h-4" />
-            <span>{completedDays.length} / 20 Completed ({progressPercent}%)</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', backgroundColor: '#0f172a', border: '1px solid #1e293b', padding: '6px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', color: '#f59e0b' }}>
+            <Flame style={{ width: '16px', height: '16px' }} />
+            <span>{completedDays.length} / 20 Done ({progressPercent}%)</span>
           </div>
 
           <button
             onClick={exportCompletePortfolio}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition shadow-md"
+            style={{ backgroundColor: '#4f46e5', color: '#ffffff', border: 'none', padding: '8px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
           >
-            <Award className="w-4 h-4" /> Export Full Portfolio
+            <Award style={{ width: '16px', height: '16px' }} /> Export Full Portfolio
           </button>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <aside className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 max-h-[750px] overflow-y-auto space-y-1.5 shadow-xl">
-          <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 px-2 py-1 mb-2">
-            20-Day Curriculum
-          </h2>
-          {TASKS.map((task) => {
-            const isDone = completedDays.includes(task.day);
-            const isCurrent = selectedDay === task.day;
-            return (
-              <button
-                key={task.day}
-                onClick={() => setSelectedDay(task.day)}
-                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-medium transition flex items-center justify-between border ${
-                  isCurrent
-                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-md'
-                    : isDone
-                    ? 'bg-slate-950/60 text-emerald-300 border-emerald-950 hover:bg-slate-800'
-                    : 'bg-slate-950/30 text-slate-400 border-slate-800/40 hover:bg-slate-800'
-                }`}
-              >
-                <div className="flex items-center gap-2 truncate">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                    isCurrent ? 'bg-white text-indigo-600' : isDone ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-400'
-                  }`}>
-                    {task.day}
-                  </span>
-                  <span className="truncate">{task.title}</span>
-                </div>
-                {isDone && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />}
-              </button>
-            );
-          })}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
+        <aside style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '16px', maxHeight: '680px', overflowY: 'auto' }}>
+          <h2 style={{ fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', color: '#94a3b8', margin: '0 0 12px 0' }}>Tasks Timeline</h2>
+          {TASKS.map((task) => (
+            <button
+              key={task.day}
+              onClick={() => setSelectedDay(task.day)}
+              style={{
+                width: '100%',
+                textAlign: 'left',
+                padding: '10px 12px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                marginBottom: '6px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                border: '1px solid',
+                backgroundColor: selectedDay === task.day ? '#4f46e5' : '#020617',
+                color: selectedDay === task.day ? '#ffffff' : '#cbd5e1',
+                borderColor: selectedDay === task.day ? '#6366f1' : '#1e293b'
+              }}
+            >
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                Day {task.day}: {task.title}
+              </span>
+              {completedDays.includes(task.day) && <CheckCircle2 style={{ width: '14px', height: '14px', color: '#10b981', flexShrink: 0 }} />}
+            </button>
+          ))}
         </aside>
 
-        <section className="lg:col-span-3 space-y-6">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
-              <div className="flex items-center gap-2">
-                <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-xs px-2.5 py-1 rounded-md font-bold">
-                  Day {currentTask.day} of 20
-                </span>
-                <span className="bg-slate-800 text-slate-300 text-xs px-2.5 py-1 rounded-md font-medium">
-                  {currentTask.theme}
-                </span>
-              </div>
-              <span className="text-xs text-indigo-300 font-mono">
-                Grammar Focus: {currentTask.grammarFocus}
+        <section style={{ gridColumn: 'span 2', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '16px', padding: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 'bold', margin: 0 }}>Day {currentTask.day}: {currentTask.title}</h3>
+              <span style={{ fontSize: '11px', backgroundColor: '#1e1b4b', color: '#a5b4fc', padding: '4px 8px', borderRadius: '12px', border: '1px solid #3730a3' }}>
+                {currentTask.theme}
               </span>
             </div>
 
-            <h3 className="text-xl font-black text-white mb-2">{currentTask.title}</h3>
-            <p className="text-slate-300 text-sm mb-4 leading-relaxed bg-slate-950/60 p-3.5 rounded-xl border border-slate-800">
+            <p style={{ fontSize: '13px', color: '#94a3b8', backgroundColor: '#020617', padding: '12px', borderRadius: '8px', border: '1px solid #1e293b', lineHeight: '1.5' }}>
               {currentTask.prompt}
             </p>
 
-            <div className="relative">
+            <div style={{ position: 'relative', marginTop: '12px' }}>
               <textarea
-                rows={9}
+                rows={8}
                 value={entryText}
                 onChange={handleTextChange}
-                placeholder="Write your autobiographical story in English here (Aim for 150+ words)..."
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500 font-mono text-sm leading-relaxed transition"
+                placeholder="Write your story in English here (Aim for 150+ words)..."
+                style={{
+                  width: '100%',
+                  backgroundColor: '#020617',
+                  border: '1px solid #1e293b',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  color: '#f8fafc',
+                  fontFamily: 'monospace',
+                  fontSize: '13px',
+                  boxSizing: 'border-box',
+                  resize: 'vertical'
+                }}
               />
-              <div className="absolute bottom-3 right-4 text-xs font-mono text-slate-500">
+              <div style={{ textAlign: 'right', fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
                 {wordCount} / {currentTask.targetWords} words
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
-              <div className="flex flex-wrap items-center gap-2">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '16px', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <button
                   onClick={handleAnalyze}
                   disabled={loading || !entryText.trim()}
-                  className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 transition shadow-lg shadow-indigo-600/20"
+                  style={{ backgroundColor: '#4f46e5', color: '#ffffff', border: 'none', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <Sparkles className="w-4 h-4" />
-                  {loading ? 'Evaluating with AI...' : 'Run Deep AI Analysis'}
+                  <Sparkles style={{ width: '16px', height: '16px' }} />
+                  {loading ? 'Analyzing...' : 'Run Deep AI Analysis'}
                 </button>
 
                 <button
                   onClick={toggleSpeak}
                   disabled={!entryText.trim()}
-                  className="bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 border border-slate-700 transition"
+                  style={{ backgroundColor: '#1e293b', color: '#f8fafc', border: '1px solid #334155', padding: '8px 14px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  {speaking ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
-                  {speaking ? 'Stop' : 'Listen Audio'}
+                  {speaking ? <VolumeX style={{ width: '16px', height: '16px', color: '#f43f5e' }} /> : <Volume2 style={{ width: '16px', height: '16px' }} />}
+                  {speaking ? 'Stop' : 'Listen'}
                 </button>
               </div>
 
-              <div className="flex items-center gap-2">
-                <label className="cursor-pointer bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-slate-700 transition">
-                  <Upload className="w-3.5 h-3.5" /> Upload .txt
-                  <input type="file" accept=".txt" onChange={handleFileUpload} className="hidden" />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <label style={{ backgroundColor: '#1e293b', color: '#cbd5e1', border: '1px solid #334155', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Upload style={{ width: '14px', height: '14px' }} /> Upload .txt
+                  <input type="file" accept=".txt" onChange={handleFileUpload} style={{ display: 'none' }} />
                 </label>
 
                 <button
                   onClick={exportSingleEntry}
                   disabled={!entryText.trim()}
-                  className="bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 px-3 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-slate-700 transition"
+                  style={{ backgroundColor: '#1e293b', color: '#cbd5e1', border: '1px solid #334155', padding: '8px 12px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <Download className="w-3.5 h-3.5" /> Export Day {currentTask.day}
+                  <Download style={{ width: '14px', height: '14px' }} /> Export
                 </button>
               </div>
             </div>
           </div>
 
           {analysis && (
-            <div className="bg-slate-900 border border-indigo-900/40 rounded-2xl p-6 space-y-6 shadow-2xl">
-              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-                <h4 className="text-lg font-black text-indigo-400 flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-indigo-400" /> AI Linguistic Evaluation
-                </h4>
-                <span className="text-xs bg-indigo-950 text-indigo-300 border border-indigo-800 px-2.5 py-1 rounded-full font-bold">
-                  CEFR Metric
-                </span>
-              </div>
+            <div style={{ backgroundColor: '#0f172a', border: '1px solid #312e81', borderRadius: '16px', padding: '20px' }}>
+              <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: '#818cf8', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 0 16px 0' }}>
+                <CheckCircle2 style={{ width: '18px', height: '18px' }} /> Linguistic Feedback
+              </h4>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="p-4 bg-slate-950 rounded-xl border border-slate-800">
-                  <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Fluency Score</div>
-                  <div className="text-2xl font-black text-indigo-400 mt-1">{analysis.score} / 10</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ backgroundColor: '#020617', padding: '12px', borderRadius: '8px', border: '1px solid #1e293b' }}>
+                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>Fluency Score</div>
+                  <div style={{ fontSize: '20px', fontWeight: '900', color: '#818cf8', marginTop: '4px' }}>{analysis.score} / 10</div>
                 </div>
-                <div className="p-4 bg-slate-950 rounded-xl border border-slate-800">
-                  <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Word Count</div>
-                  <div className="text-2xl font-black text-emerald-400 mt-1">{analysis.wordCount}</div>
-                </div>
-                <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 col-span-2 sm:col-span-2">
-                  <div className="text-xs text-slate-400 font-semibold uppercase tracking-wider mb-1">Tense Distribution</div>
-                  <div className="flex gap-4 text-xs font-mono text-slate-300 mt-1">
-                    <span className="bg-slate-900 px-2 py-1 rounded border border-slate-800">Past: <strong className="text-indigo-300">{analysis.tensesUsed?.past || 0}</strong></span>
-                    <span className="bg-slate-900 px-2 py-1 rounded border border-slate-800">Present: <strong className="text-emerald-300">{analysis.tensesUsed?.present || 0}</strong></span>
-                    <span className="bg-slate-900 px-2 py-1 rounded border border-slate-800">Future: <strong className="text-amber-300">{analysis.tensesUsed?.future || 0}</strong></span>
-                  </div>
+                <div style={{ backgroundColor: '#020617', padding: '12px', borderRadius: '8px', border: '1px solid #1e293b' }}>
+                  <div style={{ fontSize: '11px', color: '#94a3b8' }}>Word Count</div>
+                  <div style={{ fontSize: '20px', fontWeight: '900', color: '#34d399', marginTop: '4px' }}>{analysis.wordCount}</div>
                 </div>
               </div>
 
-              {analysis.vocabularyUsed?.length > 0 && (
-                <div>
-                  <h5 className="font-bold text-sm text-slate-200 mb-2.5">Vocabulary & Meanings</h5>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
-                    {analysis.vocabularyUsed.map((v, i) => (
-                      <div key={i} className="bg-slate-950 border border-slate-800 p-2.5 rounded-xl text-xs">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="text-indigo-400 font-black text-sm">{v.word}</span>
-                          <span className="text-[10px] bg-slate-900 text-slate-400 border border-slate-800 px-1.5 py-0.5 rounded font-mono">{v.cefrLevel || 'B2'}</span>
-                        </div>
-                        <p className="text-slate-400">{v.meaning}</p>
-                      </div>
-                    ))}
-                  </div>
+              {analysis.grammarCorrections?.length > 0 && (
+                <div style={{ marginBottom: '16px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 'bold', marginBottom: '8px' }}>Corrections:</div>
+                  {analysis.grammarCorrections.map((item, idx) => (
+                    <div key={idx} style={{ backgroundColor: '#020617', padding: '10px', borderRadius: '8px', border: '1px solid #1e293b', marginBottom: '6px', fontSize: '12px' }}>
+                      <span style={{ color: '#f43f5e', textDecoration: 'line-through' }}>{item.original}</span> ➔ <span style={{ color: '#34d399', fontWeight: 'bold' }}>{item.correction}</span>
+                      <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '11px' }}>{item.reason}</p>
+                    </div>
+                  ))}
                 </div>
               )}
 
-              <div>
-                <h5 className="font-bold text-sm text-slate-200 mb-2.5">Grammar & Phrasing Corrections</h5>
-                {analysis.grammarCorrections?.length > 0 ? (
-                  <ul className="space-y-2.5">
-                    {analysis.grammarCorrections.map((item, i) => (
-                      <li key={i} className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-sm">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-rose-400 line-through bg-rose-950/30 px-2 py-0.5 rounded">{item.original}</span>
-                          <span className="text-slate-500">➔</span>
-                          <span className="text-emerald-400 font-bold bg-emerald-950/30 px-2 py-0.5 rounded">{item.correction}</span>
-                        </div>
-                        <p className="text-xs text-slate-400 mt-2">{item.reason}</p>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-xs text-emerald-400 bg-emerald-950/20 border border-emerald-900/40 p-3 rounded-xl">
-                    ✓ Outstanding grammar! No significant grammatical errors were detected.
-                  </p>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <h6 className="text-xs uppercase font-extrabold tracking-wider text-slate-400 mb-1">Evaluator Feedback</h6>
-                  <p className="text-xs text-slate-300 leading-relaxed">{analysis.feedback}</p>
-                </div>
-                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <h6 className="text-xs uppercase font-extrabold tracking-wider text-indigo-400 mb-1">Fluency Action Plan</h6>
-                  <p className="text-xs text-slate-300 leading-relaxed">{analysis.fluencyAdvice}</p>
-                </div>
+              <div style={{ backgroundColor: '#020617', padding: '12px', borderRadius: '8px', border: '1px solid #1e293b', fontSize: '12px', lineHeight: '1.5' }}>
+                <strong style={{ color: '#818cf8' }}>Feedback: </strong>{analysis.feedback}
               </div>
             </div>
           )}
