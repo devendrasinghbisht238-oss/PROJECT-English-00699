@@ -83,9 +83,9 @@ Respond strictly in this exact JSON structure:
       tensesUsed: { past: 0, present: 0, future: 0 },
       vocabularyUsed: [],
       grammarCorrections: [
-        { original: 'Analysis Parsing Error', correction: 'Please retry', reason: error?.message || 'Error occurred during AI processing' }
+        { original: 'Analysis Processing Error', correction: 'Retry with valid text', reason: error?.message || 'Error occurred during AI processing' }
       ],
-      feedback: 'Could not complete AI evaluation. Please verify GEMINI_API_KEY in Vercel and redeploy.',
+      feedback: 'AI could not process this text format.',
       fluencyAdvice: 'Check API Key configuration.'
     });
   }
