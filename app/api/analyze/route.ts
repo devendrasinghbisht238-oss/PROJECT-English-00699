@@ -5,10 +5,10 @@ export const dynamic = 'force-dynamic';
 function cleanToAscii(str: string): string {
   if (!str) return '';
   return str
-    .replace(/[\u2018\u2019]/g, "'") // single curly quotes
-    .replace(/[\u201C\u201D]/g, '"') // double curly quotes
-    .replace(/[\u2013\u2014]/g, '-') // en/em dashes
-    .replace(/[^\x00-\x7F]/g, ' ')  // remove all non-ASCII bytes that crash ByteString
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, '-')
+    .replace(/[^\x00-\x7F]/g, ' ')
     .trim();
 }
 
@@ -39,8 +39,6 @@ export async function POST(req: Request) {
     }
 
     wordCountCalculated = rawText.trim().split(/\s+/).filter(Boolean).length;
-    
-    // Clean key completely of quotes, newlines, and non-ASCII chars
     const rawApiKey = (process.env.GEMINI_API_KEY || '').trim();
     const apiKey = rawApiKey.replace(/[^a-zA-Z0-9_\-\.]/g, '');
 
@@ -54,7 +52,7 @@ export async function POST(req: Request) {
           {
             original: 'Missing GEMINI_API_KEY',
             correction: 'Add GEMINI_API_KEY in Vercel',
-            reason: 'Environment variable is missing or contains invalid characters.'
+            reason: 'Environment variable is missing or invalid.'
           }
         ],
         feedback: 'Please configure GEMINI_API_KEY in Vercel settings.',
@@ -99,10 +97,10 @@ Instructions:
   "fluencyAdvice": "One actionable tip to improve English."
 }`;
 
-    // Query param only (prevents ByteString header crash)
-    const url = `[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$){apiKey}`;
+    // Clean, single-target endpoint URL
+    const targetUrl = '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=)' + apiKey;
 
-    const response = await fetch(url, {
+    const response = await fetch(targetUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
