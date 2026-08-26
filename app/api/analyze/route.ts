@@ -26,11 +26,11 @@ export async function POST(req: Request) {
           {
             original: 'Missing GEMINI_API_KEY',
             correction: 'Add GEMINI_API_KEY in Vercel Environment Variables',
-            reason: 'Environment variable not configured in Vercel.',
+            reason: 'Environment variable not configured.',
           },
         ],
         feedback: 'Please configure GEMINI_API_KEY in Vercel settings.',
-        fluencyAdvice: 'Add your Gemini API Key and Redeploy.',
+        fluencyAdvice: 'Add your API Key and Redeploy.',
       });
     }
 
@@ -45,8 +45,8 @@ ${rawText}
 
 Instructions:
 1. Identify all spelling, grammar, punctuation, and fragment errors.
-2. Provide concise CEFR vocabulary feedback with Hindi translations.
-3. Respond ONLY with this exact JSON schema (no extra text or markdown):
+2. Provide concise vocabulary feedback with Hindi meanings.
+3. Respond ONLY with this exact JSON schema (no extra text or markdown code blocks outside JSON):
 {
   "score": 7,
   "wordCount": ${words},
@@ -65,8 +65,8 @@ Instructions:
   "fluencyAdvice": "One actionable tip to improve grammar."
 }`;
 
-    // Direct Google Gemini REST API Endpoint
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+    // Using gemini-pro which is universally supported by all Google API tokens
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${encodeURIComponent(apiKey)}`;
 
     const response = await fetch(url, {
       method: 'POST',
@@ -81,7 +81,7 @@ Instructions:
           },
         ],
         generationConfig: {
-          responseMimeType: 'application/json',
+          temperature: 0.2,
         },
       }),
     });
@@ -105,7 +105,7 @@ Instructions:
     console.error('Direct API Error:', error);
     return NextResponse.json({
       score: 0,
-      wordCount: 0,
+      wordCount: words,
       tensesUsed: { past: 0, present: 0, future: 0 },
       vocabularyUsed: [],
       grammarCorrections: [
