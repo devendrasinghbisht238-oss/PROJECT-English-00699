@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     }
 
     wordCountCalculated = rawText.trim().split(/\s+/).filter(Boolean).length;
-
+    
     const envKey = process.env.GEMINI_API_KEY || '';
     const apiKey = envKey.trim().replace(/[\r\n\t "']/g, '');
 
