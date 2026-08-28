@@ -29,9 +29,9 @@ export async function POST(req: Request) {
     }
 
     wordCountCalculated = rawText.trim().split(/\s+/).filter(Boolean).length;
-    
-    const rawApiKey = (process.env.GEMINI_API_KEY || '').trim();
-    const apiKey = rawApiKey.replace(/[\r\n\t "']/g, '');
+
+    const envKey = process.env.GEMINI_API_KEY || '';
+    const apiKey = envKey.trim().replace(/[\r\n\t "']/g, '');
 
     if (!apiKey) {
       return NextResponse.json({
@@ -63,28 +63,27 @@ ${rawText}
 
 Instructions:
 1. Extract 2 to 5 notable or misspelled words typed by the student. Provide their accurate Hindi translation and CEFR level (A1 to C2).
-2. Catch every grammatical flaw, double verb ("is are"), capitalization ("my" -> "My"), spelling mistakes ("spritual" -> "spiritual"), and missing punctuation.
+2. Catch every grammatical flaw, capitalization issue (e.g. "mayank" -> "Mayank", "i am" -> "I am"), missing punctuation (missing full stop), syntax errors, or spelling mistakes.
 3. Score strictly from 1 to 10 based on grammar accuracy.
 4. Output STRICT JSON only (NO markdown outside JSON):
 {
-  "score": 3,
+  "score": 4,
   "wordCount": ${wordCountCalculated},
   "tensesUsed": { "past": 0, "present": 2, "future": 0 },
   "vocabularyUsed": [
-    { "word": "example", "meaning": "Hindi translation", "cefrLevel": "B2" }
+    { "word": "studying", "meaning": "अध्ययन कर रहा है", "cefrLevel": "A2" }
   ],
   "grammarCorrections": [
     {
-      "original": "flawed text",
-      "correction": "corrected English",
-      "reason": "grammar rule explanation"
+      "original": "my name is mayank bisht i am studying in class 12",
+      "correction": "My name is Mayank Bisht. I am studying in Class 12.",
+      "reason": "Proper capitalization for names and sentence starts, along with appropriate full stops."
     }
   ],
-  "feedback": "Constructive evaluation of sentence flow.",
-  "fluencyAdvice": "Actionable grammar improvement advice."
+  "feedback": "Two constructive sentences on writing style.",
+  "fluencyAdvice": "One actionable tip to improve English."
 }`;
 
-    // Plain string URL without markdown brackets
     const endpoint = '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent)';
 
     const response = await fetch(endpoint, {
@@ -110,7 +109,7 @@ Instructions:
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data?.error?.message || `Google API status ${response.status}`);
+      throw new Error(data?.error?.message || `Google API status: ${response.status}`);
     }
 
     const aiText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
