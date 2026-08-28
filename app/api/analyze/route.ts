@@ -1,4 +1,4 @@
-           import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +30,6 @@ export async function POST(req: Request) {
 
     wordCountCalculated = rawText.trim().split(/\s+/).filter(Boolean).length;
     
-    // Clean key of any accidental spaces or newlines
     const rawApiKey = (process.env.GEMINI_API_KEY || '').trim();
     const apiKey = rawApiKey.replace(/[\r\n\t "']/g, '');
 
@@ -64,13 +63,13 @@ ${rawText}
 
 Instructions:
 1. Extract 2 to 5 notable or misspelled words typed by the student. Provide their accurate Hindi translation and CEFR level (A1 to C2).
-2. Catch every grammatical flaw, capitalization issue (e.g. "mayank" -> "Mayank", "i am" -> "I am"), missing punctuation (missing full stop at end), syntax errors, or spelling mistakes.
+2. Catch every grammatical flaw, capitalization issue (e.g. "mayank" -> "Mayank", "i am" -> "I am"), missing punctuation (missing full stop at end), syntax errors, or spelling mistakes (e.g. "spritual" -> "spiritual", "werre" -> "where / were").
 3. Score strictly from 1 to 10 based on grammar accuracy.
 4. Output STRICT JSON only (NO markdown outside JSON):
 {
-  "score": 7,
+  "score": 3,
   "wordCount": ${wordCountCalculated},
-  "tensesUsed": { "past": 0, "present": 0, "future": 0 },
+  "tensesUsed": { "past": 1, "present": 2, "future": 0 },
   "vocabularyUsed": [
     { "word": "example", "meaning": "Hindi translation", "cefrLevel": "B2" }
   ],
@@ -85,7 +84,6 @@ Instructions:
   "fluencyAdvice": "One actionable tip to improve English."
 }`;
 
-    // Static URL without query params (Guaranteed never to throw "Invalid URL")
     const staticEndpoint = '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent)';
 
     const response = await fetch(staticEndpoint, {
