@@ -63,13 +63,13 @@ ${rawText}
 
 Instructions:
 1. Extract 2 to 5 notable or misspelled words typed by the student. Provide their accurate Hindi translation and CEFR level (A1 to C2).
-2. Catch every grammatical flaw, capitalization issue (e.g. "mayank" -> "Mayank", "i am" -> "I am"), missing punctuation (missing full stop at end), syntax errors, or spelling mistakes (e.g. "spritual" -> "spiritual", "werre" -> "where / were").
+2. Catch every grammatical flaw, double verb ("is are"), capitalization ("my" -> "My"), spelling mistakes ("spritual" -> "spiritual"), and missing punctuation.
 3. Score strictly from 1 to 10 based on grammar accuracy.
 4. Output STRICT JSON only (NO markdown outside JSON):
 {
   "score": 3,
   "wordCount": ${wordCountCalculated},
-  "tensesUsed": { "past": 1, "present": 2, "future": 0 },
+  "tensesUsed": { "past": 0, "present": 2, "future": 0 },
   "vocabularyUsed": [
     { "word": "example", "meaning": "Hindi translation", "cefrLevel": "B2" }
   ],
@@ -80,13 +80,14 @@ Instructions:
       "reason": "grammar rule explanation"
     }
   ],
-  "feedback": "Two constructive sentences on writing style.",
-  "fluencyAdvice": "One actionable tip to improve English."
+  "feedback": "Constructive evaluation of sentence flow.",
+  "fluencyAdvice": "Actionable grammar improvement advice."
 }`;
 
-    const staticEndpoint = '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent)';
+    // Plain string URL without markdown brackets
+    const endpoint = '[https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent](https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent)';
 
-    const response = await fetch(staticEndpoint, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
