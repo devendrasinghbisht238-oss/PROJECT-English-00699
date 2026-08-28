@@ -84,7 +84,7 @@ Instructions:
   "fluencyAdvice": "Actionable advice to improve."
 }`;
 
-    const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+    const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent';
 
     const response = await fetch(endpoint, {
       method: 'POST',
